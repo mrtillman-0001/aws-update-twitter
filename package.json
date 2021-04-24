@@ -8,12 +8,12 @@
     "dotenv": "^8.2.0",
     "form-data": "^4.0.0",
     "node-fetch": "^2.6.1",
-    "oauth-1.0a": "^2.2.6",
+    "oauth-signature": "^1.5.0",
     "uuid": "^8.3.2"
   },
   "devDependencies": {},
   "scripts": {
-    "zip": "rm -f update-twitter.zip && zip -r update-twitter.zip . -x 'icons/*'",
+    "zip": "rm -f update-twitter.zip && zip -r update-twitter.zip .",
     "deploy": "aws lambda update-function-code --function-name update-twitter --zip-file fileb://update-twitter.zip"
   },
   "repository": {
