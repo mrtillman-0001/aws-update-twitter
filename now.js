@@ -1,4 +1,4 @@
-const _now = null;
+let _now = null;
 
 module.exports = () => {
   if(_now) return _now;
