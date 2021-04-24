@@ -1,5 +1,4 @@
 require('dotenv').config();
-const { v4 } = require('uuid');
 const consumerKey = process.env.TWITTER_CONSUMER_KEY;
 const consumerSecret = process.env.TWITTER_CONSUMER_SECRET;
 const token = process.env.TWITTER_ACCESS_TOKEN;
@@ -8,61 +7,41 @@ const fetch = require('node-fetch');
 const { iconFilePaths } = require('./icon.repo');
 const FormData = require('form-data');
 const { createReadStream } = require("fs");
-const crypto = require('crypto');
-const OAuth = require('oauth-1.0a');
-const qs = require('querystring');
+const { v4 } = require('uuid');
+const oauthSignature = require('oauth-signature');
+
+const httpMethod = 'POST',
+url = 'https://api.twitter.com/1.1/account/update_profile_image.json',
+parameters = {
+    oauth_consumer_key : consumerKey,
+    oauth_nonce : v4(),
+    oauth_signature_method : 'HMAC-SHA1',
+    oauth_timestamp : Math.floor(Date.now() / 1000),
+    oauth_token : token,
+    oauth_version : '1.0'
+},
+encodedSignature = oauthSignature.generate(httpMethod, url, parameters, consumerSecret, tokenSecret);
 
 class TwitterService {
 
-  constructor(){
-    const oauthTimestamp = Math.floor(Date.now() / 1000);
-    const oauth = OAuth({
-      consumer: { key: consumerKey, secret: consumerSecret },
-      signature_method: 'HMAC-SHA1',
-      hash_function(base_string, key) {
-        return crypto
-            .createHmac('sha1', key)
-            .update(base_string)
-            .digest('base64')
-        }
-    });
-    const oauth_data = {
-      oauth_consumer_key: consumerKey,
-      oauth_token: token,
-      oauth_signature_method: "HMAC-SHA1",
-      oauth_timestamp: oauthTimestamp,
-      oauth_nonce: v4()
-    };
-    const baseString = [
-      "POST",
-      encodeURIComponent("https://api.twitter.com/1.1/account/update_profile_image.json"),
-      encodeURIComponent(qs.stringify(oauth_data))
-    ].join("&");
-    this.authHeader = oauth.toHeader(oauth.authorize({
-      url: "https://api.twitter.com/1.1/account/update_profile_image.json",
-      method: "POST"
-    }, token)).Authorization;
-  }
-
-  async updateProfileIcon(){
+  async updateProfileIcon(filePath){
     const body = new FormData();
-    const imageStream = createReadStream(iconFilePaths[0]);
-    body.append("image", imageStream);
-    console.log(this.authHeader);
+    body.append("image", createReadStream(filePath))
     return await fetch('https://api.twitter.com/1.1/account/update_profile_image.json',{
       method: 'POST',
       headers: {
-        "content-type": "multipart/form-data",
-        "authorization": this.authHeader
+        Authorization: `OAuth oauth_consumer_key="${parameters.oauth_consumer_key}", oauth_nonce="${parameters.oauth_nonce}", oauth_signature="${encodedSignature}", oauth_signature_method="HMAC-SHA1", oauth_timestamp="${parameters.oauth_timestamp}", oauth_token="${parameters.oauth_token}", oauth_version="1.0"`,
       },
       body
-    }).then(async res => {
+    })
+    .then(async res => {
       if(res.ok){
         return res.json();
       } else {
-        console.log(await res.text());
+        const message = await res.text();
+        throw new Error(message);
       }
-    }).catch(console.log);
+    })
   }
 
 }
